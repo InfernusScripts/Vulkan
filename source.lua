@@ -3,7 +3,7 @@ local robloxNames = {
     "Windows10Universal"
 }
 
-print("Don't select a process. Vulkan will do it for you!")
+print("Loading...")
 
 --
 
@@ -668,3 +668,5 @@ img_BtnClose.Anchors = '[akTop,akRight]'
 img_BtnClose.onClick = function()
     f.Close()
 end
+
+print("Loaded!\10Don't select a process. Vulkan will do it for you!")
