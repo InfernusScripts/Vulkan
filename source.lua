@@ -3,7 +3,7 @@ local robloxNames = {
     "Windows10Universal"
 }
 
-print("Loading...")
+print("Loading...\10")
 
 --
 
