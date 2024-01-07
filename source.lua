@@ -7,17 +7,17 @@ print("Don't select a process. Vulkan will do it for you!")
 
 --
 
-local err = error
-local function error(...)
-    print(...,"\10\10")
-    err()
-end
-
 local print = function(...)
     local args = table.pack(...)
-    args[#args] = tostring(args[#args]).."\10"
+    args[#args] = translate(tostring(args[#args])).."\10"
     print(table.unpack(args))
     return true
+end
+
+local err = error
+local function error(...)
+    print(...,"\10")
+    err()
 end
 
 
