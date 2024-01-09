@@ -9,7 +9,7 @@ print("Loading...\10")
 
 local print = function(...)
     local args = table.pack(...)
-    args[#args] = translate(tostring(args[#args])).."\10"
+    args[#args] = (tostring(args[#args])).."\10"
     print(table.unpack(args))
     return true
 end
@@ -110,7 +110,7 @@ function beginInject()
     print("To speed up the injection process, make graphics lower and disable the antiviruses (if you have them).")
 end
 
-loader.start2 = function()
+function inject()
     beginInject()
     print("Scanning...")
     local players, nameOffset, valid;
@@ -305,329 +305,110 @@ loader.start2 = function()
     print("Preparing for injecting...")
 
     local localPlayer = rapi.toInstance(readQword(players.self + localPlayerOffset));
+    local injectScript, targetScript
     checkFailed(localPlayer,"Failed to get local player")
-    local tool,targetScript,equippedTool
-    local character = game.Workspace:FindFirstChild(localPlayer.Name)
-    local TOOL = function(a)
-        if not a then return false end
-        print("Checking tool "..a.Name.."...")
-        local success = false
-        if not tool and not targetScript and a and a.ClassName == "Tool" then
-            local ts = a:FindFirstClass("LocalScript")
-            if ts then
-                print(a.Name.." is valid tool!")
-                success = true
-                tool,targetScript = a,ts
+    local function doNormalInject()
+        local tool,equippedTool
+        local character = game.Workspace:FindFirstChild(localPlayer.Name)
+        local TOOL = function(a)
+            if not a then return false end
+            print("Checking tool "..a.Name.."...")
+            local success = false
+            if not tool and not targetScript and a and a.ClassName == "Tool" then
+                local ts = a:FindFirstClass("LocalScript")
+                if ts then
+                    print(a.Name.." is valid tool!")
+                    success = true
+                    tool,targetScript = a,ts
+                end
+            end
+            return success
+        end
+        local inject = function()
+            print("Doing normal inject.")
+            local localBackpack = localPlayer:FindFirstChild("Backpack")
+            checkFailed(localBackpack,"Failed to get player's backpack")
+            for i,v in pairs(localBackpack:GetChildren()) do
+                if not tool and not targetScript then
+                    TOOL(v)
+                end
             end
         end
-        return success
-    end
-    local inject = function()
-        print("Doing normal inject.")
-        local localBackpack = localPlayer:FindFirstChild("Backpack")
-        checkFailed(localBackpack,"Failed to get player's backpack")
-        for i,v in pairs(localBackpack:GetChildren()) do
-            if not tool and not targetScript then
-                TOOL(v)
+        if character then
+            print("Found character.")
+            local suc = TOOL(character:FindFirstClass("Tool"))
+            if suc then
+                equippedTool = true
+            elseif not tool and not targetScript then
+                print("Failed to get character's equipped for direct tool Injecting.")
+                inject()
             end
-        end
-    end
-    if character then
-        print("Found character.")
-        local suc = TOOL(character:FindFirstClass("Tool"))
-        if suc then
-            equippedTool = true
-        elseif not tool and not targetScript then
-            print("Failed to get character's equipped for direct tool Injecting.")
+        else
+            print("Character not found.")
             inject()
+        end    
+        checkFailed(tool,"Failed to get player's tools.")
+        checkFailed(targetScript,"Failed to get player's tools.")
+        print("Got tool"..(equippedTool and " (in your hands)" or "")..":",tool.Name)
+        injectedOutput = "Injected!\10"..(equippedTool and "Unequip" or "Equip").." "..tool.Name.." to show vulkan's UI."
+    end
+    injectScript = nil
+    print("Getting inject script...")
+    local results = util.aobScan("496E6A656374????????????????????06")
+    for rn = 1,#results do
+        local result = results[rn];
+        local bres = util.intToBytes(result);
+        local aobs = ""
+        for i = 1,8 do
+            aobs = aobs .. string.format("%02X", bres[i])
         end
+
+        local first = false
+        local res = util.aobScan(aobs)
+        if res then
+            valid = false
+            for i = 1,#res do
+                result = res[i]
+
+                if (readQword(result - nameOffset + 8) == result - nameOffset) then
+                    injectScript = result - nameOffset
+                    valid = true
+                    break
+                end
+            end
+        end
+
+        if valid then break end
+    end
+    local inBladeBall = game.Workspace.Dead ~= nil and game.Workspace.Alive ~= nil
+    if inBladeBall then
+        local character = game.Workspace.Dead:FindFirstChild(localPlayer.Name) or game.Workspace.Alive:FindFirstChild(localPlayer.Name) or game.Workspace:FindFirstChild(localPlayer.Name)
+        if not character then
+            doNormalInject()
+            return
+        end
+        local abilities = character:FindFirstChild("Abilities") or character:FindFirstChild("Ability")
+        if not abilities then
+            doNormalInject()
+            return
+        end
+        targetScript = abilities:FindFirstClass("LocalScript")
+        if not targetScript then
+            doNormalInject()
+            return
+        end
+        injectedOutput = "Injected!\10Equip/Re-equip ability "..targetScript.Name.." to show vulkan's UI.\10If you don't have any other abilities, then go to the game and it will show."
     else
-        print("Character not found.")
-        inject()
-    end    
-    checkFailed(tool,"Failed to get player's tools.")
-    checkFailed(targetScript,"Failed to get player's tools.")
-    print("Got tool"..(equippedTool and " (in your hands)" or "")..":",tool.Name)
-    injectScript = nil
-    print("Getting inject script...")
-    local results = util.aobScan("496E6A656374????????????????????06")
-    for rn = 1,#results do
-        local result = results[rn];
-        local bres = util.intToBytes(result);
-        local aobs = ""
-        for i = 1,8 do
-            aobs = aobs .. string.format("%02X", bres[i])
-        end
-
-        local first = false
-        local res = util.aobScan(aobs)
-        if res then
-            valid = false
-            for i = 1,#res do
-                result = res[i]
-
-                if (readQword(result - nameOffset + 8) == result - nameOffset) then
-                    injectScript = result - nameOffset
-                    valid = true
-                    break
-                end
-            end
-        end
-
-        if valid then break end
+        doNormalInject()
     end
-    
+        
     checkFailed(injectScript,"Failed to get inject script.\10Did you join the game through vulkan teleporter?")
     injectScript = rapi.toInstance(injectScript)
     checkFailed(injectScript,"Failed to get inject script.\10Did you join the game through vulkan teleporter?")
     print("Injecting...")
     local b = readBytes(injectScript.self + 0x100, 0x150, true)
     writeBytes(targetScript.self + 0x100, b)
-
-    print("Injected!\10"..(equippedTool and "Unequip" or "Equip").." "..tool.Name.." to show vulkan's UI.")
-end
-
-loader.start3 = function()
-    beginInject()
-    print("Go to the AFK Mode to make safe injection.")
-    print("Scanning...")
-    local players, nameOffset, valid;
-    local results = util.aobScan("506C6179657273??????????????????07000000000000000F")
-    for rn = 1,#results do
-        local result = results[rn];
-
-        if not result then
-            return false
-        end
-
-        local bres = util.intToBytes(result);
-        local aobs = ""
-        for i = 1,8 do
-            aobs = aobs .. string.format("%02X", bres[i])
-        end
-
-        local first = false
-        local res = util.aobScan(aobs)
-        if res then
-            valid = false
-            for i = 1,#res do
-                result = res[i]
-                for j = 1,10 do
-                    local ptr = readQword(result - (8 * j))
-                    if ptr then
-                        ptr = readQword(ptr + 8)
-                        if (readString(ptr) == "Players") then
-                                players = (result - (8 * j)) - 0x18
-                                nameOffset = result - players
-                                value = true
-                                break
-
-                        end
-                    end
-                end
-                if valid then break end
-            end
-        end
-
-        if valid then break end
-    end
-
-    if not players then
-        return print("Roblox not opened!")
-    end
-
-    local parentOffset = 0;
-    for i = 0x10, 0x120, 8 do
-        local ptr = readQword(players + i)
-        if ptr ~= 0 and ptr % 4 == 0 then
-            if (readQword(ptr + 8) == ptr) then
-                parentOffset = i
-                break
-            end
-        end
-    end
-
-    print("Setting up API...")
-
-    local dataModel = readQword(players + parentOffset)
-
-    local childrenOffset = 0;
-    for i = 0x10, 0x200, 8 do
-        local ptr = readQword(dataModel + i)
-        if ptr then
-            local childrenStart = readQword(ptr)
-            local childrenEnd = readQword(ptr + 8)
-            if childrenStart and childrenEnd then
-                if childrenEnd > childrenStart and childrenEnd - childrenStart > 1 and childrenEnd - childrenStart < 0x1000 then
-                    childrenOffset = i
-                    break
-                end
-            end
-        end
-    end
-
-    local rapi = {}
-    rapi.toInstance = function(address)
-        return setmetatable({},{
-            __index = function(self, name)
-                if (name == "self") then
-                    return address
-                elseif (name == "Name") then
-                    local ptr = readQword(self.self + nameOffset);
-                    if ptr then
-                        local fl = readQword(ptr + 0x18);
-                        if fl == 0x1F then
-                            ptr = readQword(ptr);
-                        end
-                        return readString(ptr);
-                    else
-                        return "???";
-                    end
-                elseif (name == "className" or name == "ClassName") then
-                    local ptr = readQword(self.self + 0x18);
-                    ptr = readQword(ptr + 0x8);
-                    if ptr then
-                        local fl = readQword(ptr + 0x18);
-                        if fl == 0x1F then
-                            ptr = readQword(ptr);
-                        end
-                        return readString(ptr);
-                    else
-                        return "???";
-                    end
-                elseif (name == "Parent") then
-                    return rapi.toInstance(readQword(self.self + parentOffset))
-                elseif (name == "getChildren" or name == "GetChildren") then
-                    return function(self)
-                        local instances = {}
-                        local ptr = readQword(self.self + childrenOffset)
-                        if ptr then
-                            local childrenStart = readQword(ptr + 0)
-                            local childrenEnd = readQword(ptr + 8)
-                            local at = childrenStart
-                            while at < childrenEnd do
-                                local child = readQword(at)
-                                table.insert(instances, rapi.toInstance(child))
-                                at = at + 16
-                            end
-                        end
-                        return instances
-                    end
-                elseif (name == "findFirstChild" or name == "FindFirstChild") then
-                    return function(self, name)
-                        for _,v in pairs(self:getChildren()) do
-                            if v.Name == name then
-                                return v
-                            end
-                        end
-                        return nil
-                    end
-                elseif (name == "findFirstClass" or name == "FindFirstClass") then
-                    return function(self, name)
-                        for _,v in pairs(self:getChildren()) do
-                            if v.className == name then
-                                return v
-                            end
-                        end
-                        return nil
-                    end
-                elseif (name == "setParent" or name == "SetParent") then
-                    return function(self, other)
-                        writeQword(self.self + parentOffset, other.self)
-
-                         local newChildren = util.allocateMemory(0x400)
-                         writeQword(newChildren + 0, newChildren + 0x40)
-
-                         local ptr = readQword(other.self + childrenOffset)
-                         local childrenStart = readQword(ptr + 0)
-                         local childrenEnd = readQword(ptr + 8)
-                         if not childrenEnd then
-                            childrenEnd = 0
-                         end
-                         if not childrenStart then
-                            childrenStart = 0
-                         end
-                         local b = readBytes(childrenStart, childrenEnd - childrenStart, true)
-                         writeBytes(newChildren + 0x40, b)
-                         local e = newChildren + 0x40 + (childrenEnd - childrenStart);
-                         writeQword(e, self.self)
-                         writeQword(e + 8, readQword(self.self + 0x10))
-                         e = e + 0x10
-
-                         writeQword(newChildren + 0x8, e)
-                         writeQword(newChildren + 0x10, e)
-                    end
-                else
-                    return self:findFirstChild(name)
-                end
-            end,
-            __metatable = "The metatable is locked"
-        })
-    end
-
-    players = rapi.toInstance(players)
-    game = rapi.toInstance(dataModel)
-
-    checkFailed(game,"Failed to get datamodel");checkFailed(players,"Failed to get game.Players")
-
-    print("Calculating offsets...")
-
-    local localPlayerOffset = 0
-    for i = 0x10,0x600,4 do
-        local ptr = readQword(players.self + i)
-        if readQword(ptr + parentOffset) == players.self then
-            localPlayerOffset = i
-            break
-        end
-    end
-
-    local localPlayer = rapi.toInstance(readQword(players.self + localPlayerOffset));
-    checkFailed(localPlayer,"Failed to get Player")
-    local tool = game.Workspace.Dead:FindFirstChild(localPlayer.Name) or game.Workspace.Alive:FindFirstChild(localPlayer.Name)
-    checkFailed(tool,"Failed to get Character")
-    local targetScript = tool.Abilities:findFirstClass("LocalScript")
-    checkFailed(targetScript,"Failed to get target script")
-
-    injectScript = nil
-
-    print("Getting inject script...")
-
-    local results = util.aobScan("496E6A656374????????????????????06")
-    for rn = 1,#results do
-        local result = results[rn];
-        local bres = util.intToBytes(result);
-        local aobs = ""
-        for i = 1,8 do
-            aobs = aobs .. string.format("%02X", bres[i])
-        end
-
-        local first = false
-        local res = util.aobScan(aobs)
-        if res then
-            valid = false
-            for i = 1,#res do
-                result = res[i]
-                if (readQword(result - nameOffset + 8) == result - nameOffset) then
-                    injectScript = result - nameOffset
-                    valid = true
-                    break
-                end
-            end
-        end
-
-        if valid then break end
-    end
-
-    checkFailed(injectScript,"Failed to get Inject script")
-    injectScript = rapi.toInstance(injectScript)
-    checkFailed(game,"Failed to get Inject script")
-
-    print("Injecting...")
-
-    local b = readBytes(injectScript.self + 0x100, 0x150, true)
-    writeBytes(targetScript.self + 0x100, b)
-
-    print("Injected!\10Equip/Re-equip ability "..targetScript.Name.." to show vulkan's UI.")
+    print(injectedOutput or "Injected!")
 end
 
 f = createForm()
@@ -647,16 +428,10 @@ fTitle.Caption = 'Vulkan UWP'
 fTitle.Anchors = '[akTop,akLeft]'
 
 img_BtnMax = createButton(f)
-img_BtnMax.Caption = "Inject [Basic]"
+img_BtnMax.Caption = "Inject"
 img_BtnMax.setSize(125,20)
 img_BtnMax.setPosition(470-125-10,5)
-img_BtnMax.onClick = loader.start2
-
-img_BtnMax = createButton(f)
-img_BtnMax.Caption = "Inject [Blade Ball]"
-img_BtnMax.setSize(125,20)
-img_BtnMax.setPosition(470-125-125-10-10,5)
-img_BtnMax.onClick = loader.start3
+img_BtnMax.onClick = inject
 
 img_BtnClose = createButton(f)
 img_BtnClose.setSize(20,20)
