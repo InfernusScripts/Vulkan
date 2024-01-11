@@ -436,27 +436,29 @@ function inject()
                     TOOL(v)
                 end
             end
+            
+            if not tool and not targetScript then
+                print("Failed to get player tools.\10Trying to get global tools...")
 
-            print("Failed to get player tools.\10Trying to get global tools...")
+                local blocked, fail = {}, false
+                if not tool and not targetScript and localBackpack or character then
+                    repeat
+                        local tOOl = game:FindFirstClass("Tool",math.huge,blocked)
+                        if not tOOl then fail = true break end
+                        TOOL(tOOl)
+                        if not tool and not targetScript then
+                            table.insert(blocked,tOOl)
+                        end
+                    until fail or tool and targetScript
+                end
 
-            local blocked, fail = {}, false
-            if not tool and not targetScript and localBackpack or character then
-                repeat
-                    local tOOl = game:FindFirstClass("Tool",math.huge,blocked)
-                    if not tOOl then fail = true break end
-                    TOOL(tOOl)
-                    if not tool and not targetScript then
-                        table.insert(blocked,tOOl)
-                    end
-                until fail or tool and targetScript
-            end
-
-            if not fail and tool and targetScript then
-                print("Found global tool!\10Reparenting to "..(localBackpack and "backpack" or character and "character").."...")
-                tool:SetParent(localBackpack or character)
-                equippedTool = localBackpack == nil 
-            elseif fail then
-                checkFailed(nil,"Failed to get global tools.")
+                if not fail and tool and targetScript then
+                    print("Found global tool!\10Reparenting to "..(localBackpack and "backpack" or character and "character").."...")
+                    tool:SetParent(localBackpack or character)
+                    equippedTool = localBackpack == nil 
+                elseif fail then
+                    checkFailed(nil,"Failed to get global tools.")
+                end
             end
         end
         if character then
