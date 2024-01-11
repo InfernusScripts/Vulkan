@@ -234,8 +234,23 @@ function inject()
                         end
                         return instances
                     end
+                elseif (name == "getDescendants" or name == "GetDescendants") then
+                    return function(self)
+                        local descs = {}
+                        local ut
+                        function ut(i)
+                            descs[#descs+1] = i
+                            for _,v in pairs(i:getChildren()) do
+                                descs[#descs+1] = v
+                            end
+                        end
+                        for _,v in pairs(self:GetChildren()) do
+                            ut(v)
+                        end
+                        return descs
+                    end
                 elseif (name == "findFirstChild" or name == "FindFirstChild") then
-                    return function(self, name)
+                    return function(self, name, d)
                         for _,v in pairs(self:getChildren()) do
                             if v.Name == name then
                                 return v
@@ -278,6 +293,10 @@ function inject()
                          writeQword(newChildren + 0x8, e)
                          writeQword(newChildren + 0x10, e)
                     end
+                elseif (name == "isA" or name == "IsA") then
+                    return function(self, class)
+                        return self.ClassName == class
+                    end
                 else
                     return self:findFirstChild(name)
                 end
@@ -310,6 +329,13 @@ function inject()
     local function doNormalInject()
         local tool,equippedTool
         local character = game.Workspace:FindFirstChild(localPlayer.Name)
+        if not character then
+            for i,v in pairs(game.Workspace:GetDescendants()) do
+                if v and v.Name == localPlayer.Name and v.Humanoid then
+                    character = character or v
+                end
+            end
+        end
         local TOOL = function(a)
             if not a then return false end
             print("Checking tool "..a.Name.."...")
@@ -327,6 +353,13 @@ function inject()
         local inject = function()
             print("Doing normal inject.")
             local localBackpack = localPlayer:FindFirstChild("Backpack")
+            if not localBackpack then
+                for i,v in pairs(localPlayer:GetDescendants()) do
+                    if v and (v.Name == "Backpack" or v.Name == "Inventory" or v:IsA("StarterPack") or v:IsA("Backpack")) then
+                        localBackpack = v
+                    end
+                end
+            end
             checkFailed(localBackpack,"Failed to get player's backpack")
             for i,v in pairs(localBackpack:GetChildren()) do
                 if not tool and not targetScript then
