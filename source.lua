@@ -1,6 +1,19 @@
-local robloxNames = {
-    "RobloxPlayerBeta",
-    "Windows10Universal"
+local util = {
+    Patterns = {
+        UWP = {
+            Players = "506C6179657273??????????????????07000000000000000F";
+            Inject = "496E6A656374????????????????????06";
+        },
+        WEB = {
+            Players = "";
+            Inject = "";
+        },
+    },
+
+    RobloxNames = {
+        "RobloxPlayerBeta",
+        "Windows10Universal"
+    }
 }
 
 print("Loading...\10")
@@ -28,11 +41,6 @@ end
 function checkFailed(obj,reason)
     if not obj then failedInject(reason) end
 end
-
-util = {}
-util.allocateMemory = allocateMemory;
-util.startThread = executeCode;
-util.freeMemory = deAlloc;
 
 util.aobScan = function(aob, code)
     local new_results = {}
@@ -69,95 +77,82 @@ end
 local strexecg = ''
 
 loader = {}
-loader.start = function(strexec, pid)
-    local results = util.aobScan("62616E616E6173706C697473????????0C")
-    for rn = 1,#results do
-        local result = results[rn];
-
-        local str = strexec
-        local b = {}
-        for i = 1, #str + 4 do
-            if i <= string.len(str) then
-                table.insert(b, str:byte(i,i))
-            else
-                table.insert(b, 0)
-            end
-        end
-
-        table.insert(b, string.len(str))
-        writeBytes(result, b)
-
-        closeRemoteHandle(pid)
-        strexegc = ""
-    end
-
-    return nil
-end
-
-function onOpenProcess(pid)
-    if #strexecg == 0 then
-        return
-    end
-    loader.start(strexecg, pid)
-end
 
 function beginInject()
     print("-----\10\10Injecting...\10Please, go away from your keyboard and wait until injected.\10\10-----")
     print("Selecting process...")
-    for i,v in pairs(robloxNames) do
+    for i,v in pairs(util.RobloxNames) do
         OpenProcess(v)
     end
     print("To speed up the injection process, make graphics lower and disable the antiviruses (if you have them).")
 end
 
 function inject()
+    local UWP, WEB = true, true
     beginInject()
-    print("Please, wait...")
+    print("Scanning (can take a while, please wait)...")
     local players, nameOffset, valid;
-    local results = util.aobScan("506C6179657273??????????????????07000000000000000F")
-    for rn = 1,#results do
-        local result = results[rn];
-
-        if not result then
-            return false
-        end
-
-        local bres = util.intToBytes(result);
-        local aobs = ""
-        for i = 1,8 do
-            aobs = aobs .. string.format("%02X", bres[i])
-        end
-
-        local first = false
-        local res = util.aobScan(aobs)
-        if res then
-            valid = false
-            for i = 1,#res do
-                result = res[i]
-                for j = 1,10 do
-                    local ptr = readQword(result - (8 * j))
-                    if ptr then
-                        ptr = readQword(ptr + 8)
-                        if (readString(ptr) == "Players") then
-                            players = (result - (8 * j)) - 0x18
-                            nameOffset = result - players
-                            value = true
-                            break
+    local function scan1(roblox)
+        local pattern = util.Patterns[roblox].Players
+        if not pattern or pattern:gsub("	",""):gsub(" ",""):gsub("\13",""):gsub("\10","") == "" then return end
+        local results = util.aobScan(pattern)
+        for rn = 1,#results do
+            local result = results[rn];
+    
+            if not result then
+                return false
+            end
+    
+            local bres = util.intToBytes(result);
+            local aobs = ""
+            for i = 1,8 do
+                aobs = aobs .. string.format("%02X", bres[i])
+            end
+    
+            local first = false
+            local res = util.aobScan(aobs)
+            if res then
+                valid = false
+                for i = 1,#res do
+                    result = res[i]
+                    for j = 1,10 do
+                        local ptr = readQword(result - (8 * j))
+                        if ptr then
+                            ptr = readQword(ptr + 8)
+                            if (readString(ptr) == "Players") then
+                                players = (result - (8 * j)) - 0x18
+                                nameOffset = result - players
+                                value = true
+                                break
+                            end
                         end
                     end
+                    if valid then break end
                 end
-                if valid then break end
             end
+    
+            if valid then break end
         end
-
-        if valid then break end
     end
 
+    print("Checking if roblox is WEB\10(If WEB not found, that means that WEB is not supported)...")
+    scan1("WEB")
     if not players then
-        return print("Roblox not opened!")
+        WEB = false
+        
+        print("Checking if roblox is UWP\10(If UWP not found, that means that UWP is not supported)...")
+        scan1("UWP")
+        if not players then
+            UWP = false
+        end
+    end
+    print("WEB: "..tostring(WEB).."\10UWP: "..tostring(UWP))
+
+    if not UWP and not WEB then
+        error("Roblox is not opened or the cheat is not updated by the developers!\10Please, try to use different type of roblox (if you're on WEB roblox, try to UWP, else try WEB)\10")
     end
 
-    print("Scanning (takes some time, please wait)...")
+    print("Roblox type:\10"..(UWP and "UWP" or "WEB"))
 
     local parentOffset = 0;
     for i = 0x10, 0x120, 8 do
@@ -321,7 +316,7 @@ function inject()
                     return function(self, other)
                         writeQword(self.self + parentOffset, other.self)
 
-                         local newChildren = util.allocateMemory(0x400)
+                         local newChildren = allocateMemory(0x400)
                          writeQword(newChildren + 0, newChildren + 0x40)
 
                          local ptr = readQword(other.self + childrenOffset)
@@ -373,7 +368,7 @@ function inject()
 
     injectScript = nil
     print("Getting inject script...")
-    local results = util.aobScan("496E6A656374????????????????????06")
+    local results = util.aobScan(UWP and util.Patterns.UWP.Inject or util.Patterns.WEB.Inject)
     for rn = 1,#results do
         local result = results[rn];
         local bres = util.intToBytes(result);
