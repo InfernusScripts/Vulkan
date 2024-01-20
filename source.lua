@@ -647,7 +647,7 @@ fTitle.setPosition(10,5)
 fTitle.Font.Color = '0xFFFFFF'
 fTitle.Font.Size = 11
 fTitle.Font.Name = 'Verdana'
-fTitle.Caption = 'Vulkan UWP'
+fTitle.Caption = 'Vulkan'
 fTitle.Anchors = '[akTop,akLeft]'
 
 img_BtnMax = createButton(f)
