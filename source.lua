@@ -13,7 +13,9 @@ local util = {
     RobloxNames = {
         "RobloxPlayerBeta",
         "Windows10Universal"
-    }
+    },
+
+    InjectMethod = "Tool",
 }
 
 print("Loading...\10")
@@ -27,6 +29,10 @@ local print = function(...)
     return true
 end
 
+local wait = function(time)
+    return sleep(time*1000)
+end
+
 local err = error
 local function error(...)
     print(...,"\10")
@@ -35,7 +41,7 @@ end
 
 
 local function failedInject(reason)
-    error("\10\10Failed to Inject.\10Most likely, the game is not supported.\10"..(reason and "Reason: "..reason.."\10" or ""))
+    error("\10\10Failed to Inject.\10Most likely, the game is not supported.\10\10"..(reason and "Actual reason: "..reason.."\10" or ""))
 end
 
 function checkFailed(obj,reason)
@@ -66,17 +72,24 @@ util.intToBytes = function(val)
     return t
 end
 
-util.stringToBytes = function(str)
-    local result = {}
-	for i = 1, #str do
-		table.insert(result, string.byte(str, i))
-	end
-	return result
-end
-
-local strexecg = ''
-
 loader = {}
+
+local rapi, typeof = {}, type
+local t = table
+local table = {}
+for i,v in pairs(t) do
+    table[i] = v
+end
+table.find = function(t,v)
+    for idx,val in pairs(t) do
+        if idx == v then
+            return val, idx
+        elseif val == v then
+            return idx, val
+        end
+    end
+    return nil
+end
 
 function beginInject()
     print("-----\10\10Injecting...\10Please, go away from your keyboard and wait until injected.\10\10-----")
@@ -184,53 +197,49 @@ function inject()
         end
     end
 
-    local rapi, typeof = {}, type
-    local t = table
-    local table = {}
-    for i,v in pairs(t) do
-        table[i] = v
-    end
-    table.find = function(t,v)
-        for idx,val in pairs(t) do
-            if idx == v then
-                return val, idx
-            elseif val == v then
-                return idx, val
-            end
-        end
-        return nil
-    end
-    rapi.toInstance = function(address)
-        return setmetatable({},{
+    rapi.toInstance = function(a, b)
+        local address = a == rapi and b or a
+        return setmetatable({}, {
             __index = function(self, name)
-                if (name == "self" or name == "Adress" or name == "adress") then
+                if name == "self" or name == "adress" or name == "Adress" then
                     return address
-                elseif (name == "Name" or name == "name") then
-                    local ptr = readQword(self.self + nameOffset);
+                elseif name == "Name" then
+                    local ptr = readQword(self.self + nameOffset)
                     if ptr then
-                        local fl = readQword(ptr + 0x18);
+                        local fl = readQword(ptr + 0x18)
                         if fl == 0x1F then
-                            ptr = readQword(ptr);
+                            ptr = readQword(ptr)
                         end
-                        return readString(ptr);
+    
+                        if readString(readQword(ptr)) then
+                            return readString(readQword(ptr))
+                        end
+    
+                        return readString(ptr)
                     else
-                        return "???";
+                        return "???"
                     end
-                elseif (name == "className" or name == "ClassName") then
-                    local ptr = readQword(self.self + 0x18);
-                    ptr = readQword(ptr + 0x8);
+                elseif name == "JobId" then
+                    if self.self == dataModel then
+                        return readString(readQword(dataModel + jobIdOffset))
+                    end
+    
+                    return self:findFirstChild(name)
+                elseif name == "className" or name == "ClassName" then
+                    local ptr = readQword(self.self + 0x18) or 0
+                    ptr = readQword(ptr + 0x8)
                     if ptr then
-                        local fl = readQword(ptr + 0x18);
+                        local fl = readQword(ptr + 0x18)
                         if fl == 0x1F then
-                            ptr = readQword(ptr);
+                            ptr = readQword(ptr)
                         end
-                        return readString(ptr);
+                        return readString(ptr)
                     else
-                        return "???";
+                        return "???"
                     end
-                elseif (name == "Parent" or name == "parent") then
+                elseif name == "Parent" then
                     return rapi.toInstance(readQword(self.self + parentOffset))
-                elseif (name == "getChildren" or name == "GetChildren") then
+                elseif name == "getChildren" or name == "GetChildren" then
                     return function(self)
                         local instances = {}
                         local ptr = readQword(self.self + childrenOffset)
@@ -238,7 +247,9 @@ function inject()
                             local childrenStart = readQword(ptr + 0)
                             local childrenEnd = readQword(ptr + 8)
                             local at = childrenStart
-                            if not at and not childrenEnd then return {} end
+                            if not at or not childrenEnd then
+                                return instances
+                            end
                             while at < childrenEnd do
                                 local child = readQword(at)
                                 table.insert(instances, rapi.toInstance(child))
@@ -262,7 +273,7 @@ function inject()
                         end
                         return descs
                     end
-                elseif (name == "findFirstChild" or name == "FindFirstChild") then
+                elseif name == "findFirstChild" or name == "FindFirstChild" then
                     return function(self, name, d, b)
                         local d = math.max(tonumber(d) or 1, 1)
                         local b = typeof(b) == "table" and b or {}
@@ -282,12 +293,12 @@ function inject()
                             end
                             return fo
                         end
-
+    
                         f(self)
                         
                         return fo
                     end
-                elseif (name == "findFirstClass" or name == "FindFirstClass") then
+                elseif name == "findFirstClass" or name == "FindFirstClass" or name == "FindFirstChildOfClass" or name == "findFirstChildOfClass" then
                     return function(self, name, d, b)
                         local d = math.max(tonumber(d) or 1, 1)
                         local b = typeof(b) == "table" and b or {}
@@ -307,53 +318,164 @@ function inject()
                             end
                             return fo
                         end
-
+    
                         f(self)
                         
                         return fo
                     end
-                elseif (name == "setParent" or name == "SetParent") then
+                elseif name == "setParent" or name == "SetParent" then
                     return function(self, other)
+        
                         writeQword(self.self + parentOffset, other.self)
-
-                         local newChildren = allocateMemory(0x400)
-                         writeQword(newChildren + 0, newChildren + 0x40)
-
-                         local ptr = readQword(other.self + childrenOffset)
-                         local childrenStart = readQword(ptr + 0)
-                         local childrenEnd = readQword(ptr + 8)
-                         if not childrenEnd then
+    
+                        local newChildren = util.allocateMemory(0x400)
+                        writeQword(newChildren + 0, newChildren + 0x40)
+    
+                        local ptr = readQword(other.self + childrenOffset)
+                        local childrenStart = readQword(ptr + 0)
+                            local childrenEnd = readQword(ptr + 8)
+                        if not childrenEnd then
                             childrenEnd = 0
-                         end
-                         if not childrenStart then
+                        end
+                        if not childrenStart then
                             childrenStart = 0
-                         end
-                         local b = readBytes(childrenStart, childrenEnd - childrenStart, true)
-                         writeBytes(newChildren + 0x40, b)
-                         local e = newChildren + 0x40 + (childrenEnd - childrenStart);
-                         writeQword(e, self.self)
-                         writeQword(e + 8, readQword(self.self + 0x10))
-                         e = e + 0x10
-
-                         writeQword(newChildren + 0x8, e)
-                         writeQword(newChildren + 0x10, e)
+                        end
+                        local b = readBytes(childrenStart, childrenEnd - childrenStart, true)
+                        writeBytes(newChildren + 0x40, b)
+                        local e = newChildren + 0x40 + (childrenEnd - childrenStart)
+                        writeQword(e, self.self)
+                        writeQword(e + 8, readQword(self.self + 0x10))
+                        e = e + 0x10
+    
+                        writeQword(newChildren + 0x8, e)
+                        writeQword(newChildren + 0x10, e)
                     end
-                elseif (name == "isA" or name == "IsA") then
-                    return function(self, class)
-                        return self.ClassName == class
+                elseif name == "value" or name == "Value" then
+                    if self.className == "StringValue" then
+                        return readString(self.self + 0xC0)
+                    elseif self.className == "BoolValue" then
+                        return readByte(self.self + 0xC0) == 1
+                    elseif self.className == "IntValue" then
+                        return readInteger(self.self + 0xC0)
+                    elseif self.className == "NumberValue" then
+                        return readDouble(self.self + 0xC0)
+                    elseif self.className == "ObjectValue" then
+                        return rapi.toInstance(readQword(self.self + 0xC0))
+                    elseif self.className == "Vector3Value" then
+                        local x = readFloat(self.self + 0xC0)
+                        local y = readFloat(self.self + 0xC4)
+                        local z = readFloat(self.self + 0xC8)
+                        return {
+                            X = x,
+                            Y = y,
+                            Z = z
+                        }
+                    else
+                        return self:findFirstChild(name)
                     end
+                elseif name == "Disabled" then
+                    if self.className == "LocalScript" then
+                        return readByte(self.self + 0x1EC) == 1
+                    end
+        
+                    return self:findFirstChild(name)
+                elseif name == "Enabled" then
+                    if self.className == "LocalScript" then
+                        return readByte(self.self + 0x1EC) == 0
+                    end
+        
+                    return self:findFirstChild(name)
+                elseif name == "DisplayName" then
+                    if self.className == "Humanoid" then
+                        return readString(self.self + 728)
+                    end
+        
+                    return self:findFirstChild(name)
+                elseif name == "LocalPlayer" or name == "localPlayer" then
+                    return rapi.toInstance(readQword(players.self + LocalPlayerOffset))
+                elseif name == "GetService" or name == "getService" then
+                    return function(self, name)
+                        for i,v in pairs(self:GetChildren()) do
+                            if v and v.ClassName:gsub(" ","") == name then
+                                return v
+                            end
+                        end
+                    end
+                elseif name == "IsA" or name == "isA" then
+                    return function(self, name)
+                        return self.ClassName == name
+                    end
+                elseif name == "Locked" then
+                    return readByte(self.self + 0x1BA) == 1
                 else
                     return self:findFirstChild(name)
                 end
             end,
-            __metatable = "The metatable is locked"
+            __newindex = function(self, name, value)
+                if name == "value" or name == "Value" then
+                    if self.className == "StringValue" then
+                        writeString(self.self + 0xC0, value)
+                    elseif self.className == "BoolValue" then
+                        writeByte(self.self + 0xC0, value and 1 or 0)
+                    elseif self.className == "IntValue" then
+                        writeInteger(self.self + 0xC0, value)
+                    elseif self.className == "NumberValue" then
+                        writeDouble(self.self + 0xC0, value)
+                    elseif self.className == "ObjectValue" then
+                        writeQword(self.self + 0xC0, value.self)
+                    elseif self.className == "Vector3Value" then
+                        writeFloat(self.self + 0xC0, value.X)
+                        writeFloat(self.self + 0xC4, value.Y)
+                        writeFloat(self.self + 0xC8, value.Z)
+                    else
+                        self:findFirstChild(name)
+                    end
+                elseif name == "Disabled" then
+                    if self.className == "LocalScript" then
+                        writeByte(self.self + 0x1EC, value and 1 or 0)
+                    end
+    
+                    self:findFirstChild(name)
+                elseif name == "Enabled" then
+                    if self.className == "LocalScript" then
+                        writeByte(self.self + 0x1EC, value and 0 or 1)
+                    end
+                elseif name == "DisplayName" then
+                    if self.className == "Humanoid" then
+                        writeString(self.self + 728, value)
+                    end
+                elseif name == "Locked" then
+                    writeByte(self.self + 0x1BA, value and 1 or 0)
+                elseif name == "Parent" then
+                    self:setParent(value)
+                elseif name == "Name" then
+                    local ptr = readQword(self.self + nameOffset)
+                    if ptr then
+                        local fl = readQword(ptr + 0x18)
+                        if fl == 0x1F then
+                            ptr = readQword(ptr)
+                        end
+    
+                        if readString(readQword(ptr)) then
+                            writeString(readQword(ptr), value)
+                        else
+                            writeString(ptr, value)
+                        end
+                    end
+                end
+            end,
+            __metatable = "The metatable is locked",
+            __tostring = function(self)
+                return self.Name
+            end
         })
     end
 
     players = rapi.toInstance(players)
     game = rapi.toInstance(dataModel)
+    workspace = game:GetService("Workspace")
 
-    checkFailed(game,"Failed to get datamodel");checkFailed(players,"Failed to get game.Players")
+    checkFailed(game,"Failed to get datamodel");checkFailed(players,"Failed to get game:GetService(\"Players\")")
 
     print("Calculating offsets...")
 
@@ -395,26 +517,28 @@ function inject()
         if valid then break end
     end
 
-    checkFailed(injectScript,"Failed to get inject script.\10Did you join the game through vulkan teleporter?")
+    checkFailed(injectScript,"Failed to get inject script adress.\10Did you join the game through vulkan teleporter?")
     injectScript = rapi.toInstance(injectScript)
-    checkFailed(injectScript,"Failed to get inject script.\10Did you join the game through vulkan teleporter?")
+    checkFailed(injectScript,"Failed to get inject script instance.\10Did you join the game through vulkan teleporter?")
 
     print("Got inject script!")
     print("Almost there, doing the final steps...")
 
     local localPlayer = rapi.toInstance(readQword(players.self + localPlayerOffset));
+    local playerGui = localPlayer:FindFirstClass("PlayerGui") or localPlayer:FindFirstChild("PlayerGui")
+    local playerScripts = localPlayer:FindFirstClass("PlayerScripts")
     local targetScript
     checkFailed(localPlayer,"Failed to get local player")
     local function doNormalInject()
         local tool,equippedTool
-        local character = game.Workspace:FindFirstChild(localPlayer.Name,math.huge)
+        local character = workspace:FindFirstChild(localPlayer.Name,math.huge)
         local TOOL = function(a)
             if not a or not a:IsA("Tool") then return false end
             print("Checking tool "..a.Name.."...")
             local success = false
             if not tool and not targetScript and a and a:IsA("Tool") then
                 local ts = a:FindFirstClass("LocalScript",math.huge)
-                if ts then
+                if ts and ts.Enabled then
                     print(a.Name.." is valid tool!")
                     success = true
                     tool,targetScript = a,ts
@@ -449,8 +573,9 @@ function inject()
 
                 if not fail and tool and targetScript then
                     print("Found global tool!\10Reparenting to "..(localBackpack and "backpack" or character and "character").."...")
-                    tool:SetParent(localBackpack or character)
-                    equippedTool = localBackpack == nil 
+                    tool:SetParent(character or localBackpack)
+                    equippedTool = character ~= nil 
+                    print("Reparented to",character and "Character\10When injected you should reset!" or "Backpack")
                 elseif fail then
                     checkFailed(nil,"Failed to get global tools.")
                 end
@@ -475,9 +600,8 @@ function inject()
         print("Got tool"..(equippedTool and " (in your hands)" or "")..":",tool.Name)
         injectedOutput = "Injected!\10"..(equippedTool and "Unequip" or "Equip").." "..tool.Name.." to show vulkan's UI."
     end
-    local inBladeBall = game.Workspace.Dead ~= nil and game.Workspace.Alive ~= nil
-    if inBladeBall then
-        local character = game.Workspace.Dead:FindFirstChild(localPlayer.Name) or game.Workspace.Alive:FindFirstChild(localPlayer.Name) or game.Workspace:FindFirstChild(localPlayer.Name)
+    if workspace.Dead ~= nil and workspace.Alive ~= nil and workspace.Balls ~= nil then
+        local character = workspace.Dead:FindFirstChild(localPlayer.Name) or workspace.Alive:FindFirstChild(localPlayer.Name) or workspace:FindFirstChild(localPlayer.Name)
         if not character then
             doNormalInject()
             return
@@ -492,7 +616,14 @@ function inject()
             doNormalInject()
             return
         end
-        injectedOutput = "Injected!\10Equip/Re-equip ability "..targetScript.Name.." to show vulkan's UI.\10If you don't have any other abilities, then go to the game and it will show."
+        injectedOutput = "Injected!\10"..(targetScript.Enabled and "Re-equip" or "Equip").." ability "..targetScript.Name.." to show vulkan's UI.\10If you don't have any other abilities, then go to the game and it will show."
+    elseif game:GetService("StarterGui"):FindFirstChild("CBScoreboard") then
+		injectScript = playerGui:FindFirstChild("FreeCam2")
+        if not injectScript then
+            doNormalInject()
+            return
+        end
+        injectedOutput = "Injected!\10Go the the spectator team to show Vulkan's UI!"
     else
         doNormalInject()
     end
@@ -534,6 +665,7 @@ img_BtnClose.Cursor = -21
 img_BtnClose.Anchors = '[akTop,akRight]'
 img_BtnClose.onClick = function()
     f.Close()
+    os.exit()
 end
 
 print("Loaded!\10Don't select a process. Vulkan will do it for you!")
