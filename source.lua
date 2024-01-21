@@ -328,7 +328,7 @@ function inject()
         
                         writeQword(self.self + parentOffset, other.self)
     
-                        local newChildren = util.allocateMemory(0x400)
+                        local newChildren = allocateMemory(0x400)
                         writeQword(newChildren + 0, newChildren + 0x40)
     
                         local ptr = readQword(other.self + childrenOffset)
