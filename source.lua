@@ -15,7 +15,8 @@ local util = {
         "Windows10Universal"
     },
 
-    InjectMethod = "Tool",
+    InjectMethod = --"New"
+        "Tool"
 }
 
 print("Loading...\10")
@@ -197,6 +198,8 @@ function inject()
         end
     end
 
+    local localPlayerOffset
+
     rapi.toInstance = function(a, b)
         local address = a == rapi and b or a
         return setmetatable({}, {
@@ -371,7 +374,7 @@ function inject()
                             Z = z
                         }
                     else
-                        return self:findFirstChild(name)
+                        return self[name]
                     end
                 elseif name == "Disabled" then
                     if self.className == "LocalScript" then
@@ -392,7 +395,9 @@ function inject()
         
                     return self:findFirstChild(name)
                 elseif name == "LocalPlayer" or name == "localPlayer" then
-                    return rapi.toInstance(readQword(players.self + LocalPlayerOffset))
+                    return rapi.toInstance(readQword(players.self + localPlayerOffset))
+                elseif name == "Character" then
+                    return workspace:FindFirstChild(game.Players.LocalPlayer.Name, math.huge)
                 elseif name == "GetService" or name == "getService" then
                     return function(self, name)
                         for i,v in pairs(self:GetChildren()) do
@@ -472,14 +477,7 @@ function inject()
     end
 
     players = rapi.toInstance(players)
-    game = rapi.toInstance(dataModel)
-    workspace = game:GetService("Workspace")
 
-    checkFailed(game,"Failed to get datamodel");checkFailed(players,"Failed to get game:GetService(\"Players\")")
-
-    print("Calculating offsets...")
-
-    local localPlayerOffset = 0
     for i = 0x10,0x600,4 do
         local ptr = readQword(players.self + i)
         if readQword(ptr + parentOffset) == players.self then
@@ -487,6 +485,14 @@ function inject()
             break
         end
     end
+
+    game = rapi.toInstance(dataModel)
+    workspace = game:GetService("Workspace")
+    localPlayer = players.LocalPlayer
+    char = localPlayer.Character
+    character = char
+
+    checkFailed(game,"Failed to get datamodel");checkFailed(players,"Failed to get game:GetService(\"Players\")")
 
     injectScript = nil
     print("Getting inject script...")
@@ -523,85 +529,113 @@ function inject()
 
     print("Got inject script!")
     print("Almost there, doing the final steps...")
-
-    local localPlayer = rapi.toInstance(readQword(players.self + localPlayerOffset));
     local playerGui = localPlayer:FindFirstClass("PlayerGui") or localPlayer:FindFirstChild("PlayerGui")
     local playerScripts = localPlayer:FindFirstClass("PlayerScripts")
     local targetScript
-    checkFailed(localPlayer,"Failed to get local player")
+    local injectedOutput
+    local function INJECT(target, inject)
+        local b = readBytes(inject.self + 0x100, 0x150, true)
+        writeBytes(target.self + 0x100, b)
+    end
     local function doNormalInject()
-        local tool,equippedTool
-        local character = workspace:FindFirstChild(localPlayer.Name,math.huge)
-        local TOOL = function(a)
-            if not a or not a:IsA("Tool") then return false end
-            print("Checking tool "..a.Name.."...")
-            local success = false
-            if not tool and not targetScript and a and a:IsA("Tool") then
-                local ts = a:FindFirstClass("LocalScript",math.huge)
-                if ts and ts.Enabled then
-                    print(a.Name.." is valid tool!")
-                    success = true
-                    tool,targetScript = a,ts
+        if util.InjectMethod == "Tool" then
+            local tool,equippedTool
+            local TOOL = function(a)
+                if not a or not a:IsA("Tool") then return false end
+                print("Checking tool "..a.Name.."...")
+                local success = false
+                if not tool and not targetScript and a and a:IsA("Tool") then
+                    local ts = a:FindFirstClass("LocalScript",math.huge)
+                    if ts and ts.Enabled then
+                        print(a.Name.." is valid tool!")
+                        success = true
+                        tool,targetScript = a,ts
+                    end
                 end
+                return success
             end
-            return success
-        end
-        local inject = function()
-            print("Doing normal inject.")
-            local localBackpack = localPlayer:FindFirstChild("Backpack") or localPlayer:FindFirstClass("Backpack")
-            checkFailed(localBackpack,"Failed to get player's backpack")
-            for i,v in pairs(localBackpack:GetChildren()) do
+            local inject = function()
+                print("Doing normal inject.")
+                local localBackpack = localPlayer:FindFirstChild("Backpack") or localPlayer:FindFirstClass("Backpack")
+                checkFailed(localBackpack,"Failed to get player's backpack")
+                for i,v in pairs(localBackpack:GetChildren()) do
+                    if not tool and not targetScript then
+                        TOOL(v)
+                    end
+                end
+                
                 if not tool and not targetScript then
-                    TOOL(v)
+                    print("Failed to get player tools.\10Trying to get global tools...")
+
+                    local blocked, fail = {}, false
+                    if not tool and not targetScript and localBackpack or character then
+                        repeat
+                            local tOOl = game:FindFirstClass("Tool",math.huge,blocked)
+                            if not tOOl then fail = true break end
+                            TOOL(tOOl)
+                            if not tool and not targetScript then
+                                table.insert(blocked,tOOl)
+                            end
+                        until fail or tool and targetScript
+                    end
+
+                    if not fail and tool and targetScript then
+                        print("Found global tool!\10Reparenting to "..(localBackpack and "backpack" or character and "character").."...")
+                        tool:SetParent(character or localBackpack)
+                        equippedTool = character ~= nil 
+                        print("Reparented to",character and "Character\10When injected you should reset!" or "Backpack")
+                    elseif fail then
+                        checkFailed(nil,"Failed to get global tools.")
+                    end
                 end
             end
-            
-            if not tool and not targetScript then
-                print("Failed to get player tools.\10Trying to get global tools...")
-
-                local blocked, fail = {}, false
-                if not tool and not targetScript and localBackpack or character then
-                    repeat
-                        local tOOl = game:FindFirstClass("Tool",math.huge,blocked)
-                        if not tOOl then fail = true break end
-                        TOOL(tOOl)
-                        if not tool and not targetScript then
-                            table.insert(blocked,tOOl)
-                        end
-                    until fail or tool and targetScript
+            if character then
+                print("Found character.")
+                local suc = TOOL(character:FindFirstClass("Tool"))
+                if suc then
+                    equippedTool = true
+                elseif not tool and not targetScript then
+                    print("Failed to get character's equipped for direct tool Injecting.")
+                    inject()
                 end
-
-                if not fail and tool and targetScript then
-                    print("Found global tool!\10Reparenting to "..(localBackpack and "backpack" or character and "character").."...")
-                    tool:SetParent(character or localBackpack)
-                    equippedTool = character ~= nil 
-                    print("Reparented to",character and "Character\10When injected you should reset!" or "Backpack")
-                elseif fail then
-                    checkFailed(nil,"Failed to get global tools.")
-                end
-            end
-        end
-        if character then
-            print("Found character.")
-            local suc = TOOL(character:FindFirstClass("Tool"))
-            if suc then
-                equippedTool = true
-            elseif not tool and not targetScript then
-                print("Failed to get character's equipped for direct tool Injecting.")
+            else
+                print("Character not found.")
                 inject()
-            end
-        else
-            print("Character not found.")
-            inject()
-        end    
+            end    
 
-        checkFailed(tool,"Failed to get player's tools.")
-        checkFailed(targetScript,"Failed to get player's tools.")
-        print("Got tool"..(equippedTool and " (in your hands)" or "")..":",tool.Name)
-        injectedOutput = "Injected!\10"..(equippedTool and "Unequip" or "Equip").." "..tool.Name.." to show vulkan's UI."
+            checkFailed(tool,"Failed to get player's tools.")
+            checkFailed(targetScript,"Failed to get player's tools.")
+            print("Got tool"..(equippedTool and " (in your hands)" or "")..":",tool.Name)
+            injectedOutput = "Injected!\10"..(equippedTool and "Unequip" or "Equip").." "..tool.Name.." to show vulkan's UI."
+        elseif util.InjectMethod == "New" then
+            local SCRIPT, ignore, failed = nil, {}, false
+            repeat
+                SCRIPT = game:FindFirstClass("LocalScript", math.huge, ignore)
+                if not SCRIPT then
+                    failed = true
+                    break
+                end
+                if SCRIPT.Disabled then
+                    table.insert(ignore, SCRIPT)
+                    SCRIPT = nil
+                end
+            until SCRIPT or failed
+            checkFailed(not failed, "Failed to inject:\10Failed to find any enabled local script")
+            checkFailed(SCRIPT, "Failed to inject:\10Failed to find any enabled local script")
+            
+            targetScript = SCRIPT
+            print("Injecting...")
+            INJECT(targetScript, injectScript)
+            print("Injected!\10Reparenting to character...")
+            targetScript:SetParent(localBackpack or character)
+            print("Reparented!\10Reset your character to show Vulkan's UI!")
+            return
+        else
+            error("Failed to inject:\10Unknown inject method!")
+        end
     end
     if workspace.Dead ~= nil and workspace.Alive ~= nil and workspace.Balls ~= nil then
-        local character = workspace.Dead:FindFirstChild(localPlayer.Name) or workspace.Alive:FindFirstChild(localPlayer.Name) or workspace:FindFirstChild(localPlayer.Name)
+        print("GAME: Blade Ball")
         if not character then
             doNormalInject()
             return
@@ -618,19 +652,38 @@ function inject()
         end
         injectedOutput = "Injected!\10"..(targetScript.Enabled and "Re-equip" or "Equip").." ability "..targetScript.Name.." to show vulkan's UI.\10If you don't have any other abilities, then go to the game and it will show."
     elseif game:GetService("StarterGui"):FindFirstChild("CBScoreboard") then
-		injectScript = playerGui:FindFirstChild("FreeCam2")
-        if not injectScript then
+        print("GAME: Counter Blox")
+		targetScript = playerGui:FindFirstChild("FreeCam2")
+        if not targetScript then
             doNormalInject()
             return
         end
         injectedOutput = "Injected!\10Go the the spectator team to show Vulkan's UI!"
+    elseif game:GetService("ReplicatedStorage"):FindFirstChild("HiddenObjects") and game:GetService("ReplicatedStorage").HiddenObjects:FindFirstChild("Boundary") then
+        print("GAME: Funky Friday (support soon)")
+        if true then
+            doNormalInject()
+            return
+        end
     else
+        --[[print("GAME: Other\10Inject method: "..util.InjectMethod)
+        local s,e = pcall(doNormalInject)
+        if not s and (util.InjectMethod == "Tool" or util.InjectMethod == "New") then
+            print("Failed to inject with method "..util.InjectMethod..".\10Reason: "..e.."\10\10Trying "..(util.InjectMethod == "Tool" and "New" or "Tool")..".")
+            util.InjectMethod = util.InjectMethod == "Tool" and "New" or "Tool"
+            local suc, err = pcall(doNormalInject)
+            if not suc then
+                util.InjectMethod = util.InjectMethod == "Tool" and "New" or "Tool"
+                error("Failed to inject.\10Reason: "..err)
+            end
+        elseif not s and (util.InjectMethod ~= "Tool" and util.InjectMethod ~= "New") then
+            error(e)
+        end]]
         doNormalInject()
     end
     
     print("Injecting...")
-    local b = readBytes(injectScript.self + 0x100, 0x150, true)
-    writeBytes(targetScript.self + 0x100, b)
+    INJECT(targetScript, injectScript)
     print(injectedOutput or "Injected!")
 end
 
@@ -645,16 +698,32 @@ f.onMouseDown = DragIt
 fTitle = createLabel(f)
 fTitle.setPosition(10,5)
 fTitle.Font.Color = '0xFFFFFF'
-fTitle.Font.Size = 11
+fTitle.Font.Size = 9
 fTitle.Font.Name = 'Verdana'
 fTitle.Caption = 'Vulkan'
-fTitle.Anchors = '[akTop,akLeft]'
+fTitle.setPosition(10, 4)
 
-img_BtnMax = createButton(f)
-img_BtnMax.Caption = "Inject"
-img_BtnMax.setSize(125,20)
-img_BtnMax.setPosition(470-125-10,5)
-img_BtnMax.onClick = inject
+fVer = createLabel(f)
+fVer.Font.Color = '0xFFFFFF'
+fVer.Font.Size = 6
+fVer.Font.Name = 'Verdana'
+fVer.Caption = (io.open("Version","r")):read("*a")
+fVer.setPosition(10, 18)
+
+img_BtnInject = createButton(f)
+img_BtnInject.Caption = "Inject"
+img_BtnInject.setSize(125,20)
+img_BtnInject.setPosition(470-125-10,5)
+img_BtnInject.onClick = inject
+
+--[[img_BtnMode = createButton(f)
+img_BtnMode.Caption = util.InjectMethod
+img_BtnMode.setSize(50,20)
+img_BtnMode.setPosition(470-125-10-50-10,5)
+img_BtnMode.onClick = function()
+    util.InjectMethod = util.InjectMethod == "Tool" and "New" or "Tool"
+    img_BtnMode.Caption = util.InjectMethod
+end]]
 
 img_BtnClose = createButton(f)
 img_BtnClose.setSize(20,20)
