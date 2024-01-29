@@ -16,7 +16,7 @@ local util = {
     },
 
     InjectMethod = --"New"
-        "Tool"
+	"Tool"
 }
 
 print("Loading...\10")
@@ -301,7 +301,7 @@ function inject()
                         
                         return fo
                     end
-                elseif name == "findFirstClass" or name == "FindFirstClass" or name == "FindFirstChildOfClass" or name == "findFirstChildOfClass" then
+                elseif name == "findFirstClass" or name == "FindFirstClass" or name == "FindFirstChildOfClass" or name == "findFirstChildOfClass" or name == "findFirstChildWhichIsA" or name == "FindFirstChildWhichIsA" then
                     return function(self, name, d, b)
                         local d = math.max(tonumber(d) or 1, 1)
                         local b = typeof(b) == "table" and b or {}
@@ -608,28 +608,23 @@ function inject()
             print("Got tool"..(equippedTool and " (in your hands)" or "")..":",tool.Name)
             injectedOutput = "Injected!\10"..(equippedTool and "Unequip" or "Equip").." "..tool.Name.." to show vulkan's UI."
         elseif util.InjectMethod == "New" then
-            local SCRIPT, ignore, failed = nil, {}, false
+            local ignore, fail = {}, false
             repeat
-                SCRIPT = game:FindFirstClass("LocalScript", math.huge, ignore)
-                if not SCRIPT then
-                    failed = true
-                    break
-                end
-                if SCRIPT.Disabled then
-                    table.insert(ignore, SCRIPT)
-                    SCRIPT = nil
-                end
-            until SCRIPT or failed
-            checkFailed(not failed, "Failed to inject:\10Failed to find any enabled local script")
-            checkFailed(SCRIPT, "Failed to inject:\10Failed to find any enabled local script")
-            
-            targetScript = SCRIPT
-            print("Injecting...")
-            INJECT(targetScript, injectScript)
-            print("Injected!\10Reparenting to character...")
-            targetScript:SetParent(localBackpack or character)
-            print("Reparented!\10Reset your character to show Vulkan's UI!")
-            return
+            targetScript = game.StarterPlayer.StarterCharacterScripts:FindFirstChildOfClass("LocalScript", 1, ignore)
+            if targetScript and targetScript.Enabled then
+                INJECT(targetScript, injectScript)
+                print("Injected!\10Reset your character to show Vulkan's UI!")
+                break
+            elseif targetScript and not targetScript.Enabled then
+                table.insert(ignore, targetScript)
+                targetScript = nil
+            elseif not targetScript then
+                fail = true
+            end
+            until fail or targetScript
+            if fail then
+                error("Failed to get valid script for injecting.")
+            end
         else
             error("Failed to inject:\10Unknown inject method!")
         end
@@ -666,7 +661,7 @@ function inject()
             return
         end
     else
-        --[[print("GAME: Other\10Inject method: "..util.InjectMethod)
+        print("GAME: Other\10Inject method: "..util.InjectMethod)
         local s,e = pcall(doNormalInject)
         if not s and (util.InjectMethod == "Tool" or util.InjectMethod == "New") then
             print("Failed to inject with method "..util.InjectMethod..".\10Reason: "..e.."\10\10Trying "..(util.InjectMethod == "Tool" and "New" or "Tool")..".")
@@ -678,8 +673,7 @@ function inject()
             end
         elseif not s and (util.InjectMethod ~= "Tool" and util.InjectMethod ~= "New") then
             error(e)
-        end]]
-        doNormalInject()
+        end
     end
     
     print("Injecting...")
@@ -737,5 +731,4 @@ img_BtnClose.onClick = function()
     os.exit()
 end
 
-print("Loaded!\10Don't select a process. Vulkan will do it for you!")
 print("Loaded!\10Don't select a process. Vulkan will do it for you!")
