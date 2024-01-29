@@ -1,4 +1,3 @@
-print("Vulkan 2.5")
 local util = {
     Patterns = {
         UWP = {
@@ -738,4 +737,5 @@ img_BtnClose.onClick = function()
     os.exit()
 end
 
+print("Loaded!\10Don't select a process. Vulkan will do it for you!")
 print("Loaded!\10Don't select a process. Vulkan will do it for you!")
