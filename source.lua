@@ -752,7 +752,7 @@ print("Loaded!\10Don't select a process. Vulkan will do it for you!")
 local isWEBEmpty, isUWPEmpty = false, false
 
 isWEBEmpty = isEmptyString(util.Patterns.WEB.Players)
-isUWPEmpty = isEmptyString(util.Patterns.WEB.Players)
+isUWPEmpty = isEmptyString(util.Patterns.UWP.Players)
 
 if isWEBEmpty and isUWPEmpty then
     print("Uh oh!\10Vulkan is down currently!\10Reason: No patterns found!")
