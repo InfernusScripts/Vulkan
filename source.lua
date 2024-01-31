@@ -697,6 +697,14 @@ function inject()
     print(injectedOutput or "Injected!")
 end
 
+local i = getInternet('CEVersionCheck')
+local ver = i.getURL("https://raw.githubusercontent.com/InfernusScripts/Vulkan/main/Version")
+if ver then
+    ver = ver:gsub("\10",""):gsub(" ",""):gsub("\13","")
+elseif not ver or isEmptyString(ver) then
+    ver = io.open("Version","r"):read("*a")
+end
+
 f = createForm()
 f.Width = 500
 f.Height = 30
@@ -717,8 +725,15 @@ fVer = createLabel(f)
 fVer.Font.Color = '0xFFFFFF'
 fVer.Font.Size = 6
 fVer.Font.Name = 'Verdana'
-fVer.Caption = (io.open("Version","r")):read("*a")
+fVer.Caption = ver
 fVer.setPosition(10, 18)
+
+fMode = createLabel(f)
+fMode.Font.Color = '0xFFFFFF'
+fMode.Font.Size = 8
+fMode.Font.Name = 'Verdana'
+fMode.Caption = "   Inject\10method:"
+fMode.setPosition(470-125-10-50-10-55, 2)
 
 img_BtnInject = createButton(f)
 img_BtnInject.Caption = "Inject"
