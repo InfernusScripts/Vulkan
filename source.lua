@@ -26,11 +26,16 @@ print("Loading...\10")
 
 --
 
+local injecting = false
 local print = function(...)
     local args = table.pack(...)
     args[#args] = (tostring(args[#args])).."\10"
     print(table.unpack(args))
     return true
+end
+
+local isEmptyString = function(str)
+    return str:gsub(" ",""):gsub("\10",""):gsub("\13","") == ""
 end
 
 local wait = function(time)
@@ -105,6 +110,8 @@ function beginInject()
 end
 
 function inject()
+    if injecting then return end
+    --injecting = true
     local UWP, WEB = true, true
     beginInject()
     print("Scanning (can take a while, please wait)...")
@@ -742,3 +749,15 @@ img_BtnClose.onClick = function()
 end
 
 print("Loaded!\10Don't select a process. Vulkan will do it for you!")
+local isWEBEmpty, isUWPEmpty = false, false
+
+isWEBEmpty = isEmptyString(util.Patterns.WEB.Players)
+isUWPEmpty = isEmptyString(util.Patterns.WEB.Players)
+
+if isWEBEmpty and isUWPEmpty then
+    print("Uh oh!\10Vulkan is down currently!\10Reason: No patterns found!")
+    wait(5)
+    os.exit()
+elseif isWEBEmpty or isUWPEmpty then
+    print("Please make sure that you using Vulkan on "..(isWEBEmpty and "UWP" or "WEB").." roblox, or it will not work!")
+end
