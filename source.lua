@@ -629,6 +629,7 @@ function inject()
             if fail then
                 error("Failed to get valid script for injecting.")
             end
+            return true
         else
             error("Failed to inject:\10Unknown inject method!")
         end
@@ -677,6 +678,10 @@ function inject()
             end
         elseif not s and (util.InjectMethod ~= "Tool" and util.InjectMethod ~= "New") then
             error(e)
+        elseif s then
+            if e then
+                return
+            end
         end
     end
     
