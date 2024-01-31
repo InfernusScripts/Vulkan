@@ -497,12 +497,12 @@ function inject()
     end
 
     game = rapi.toInstance(dataModel)
+    checkFailed(game,"Failed to get datamodel")
     workspace = game:GetService("Workspace")
     localPlayer = players.LocalPlayer
     char = localPlayer.Character
     character = char
-
-    checkFailed(game,"Failed to get datamodel");checkFailed(players,"Failed to get game:GetService(\"Players\")")
+    checkFailed(char,"Failed to get player")
 
     injectScript = nil
     print("Getting inject script...")
@@ -674,21 +674,28 @@ function inject()
         end
     else
         print("GAME: Other\10Inject method: "..util.InjectMethod)
-        local s,e = pcall(doNormalInject)
-        if not s and (util.InjectMethod == "Tool" or util.InjectMethod == "New") then
-            print("Failed to inject with method "..util.InjectMethod..".\10Reason: "..e.."\10\10Trying "..(util.InjectMethod == "Tool" and "New" or "Tool")..".")
-            util.InjectMethod = util.InjectMethod == "Tool" and "New" or "Tool"
-            local suc, err = pcall(doNormalInject)
-            if not suc then
-                util.InjectMethod = util.InjectMethod == "Tool" and "New" or "Tool"
-                error("Failed to inject.\10Reason: "..err)
+        local succeess, noInjectMethods, stop = false, false, false
+        local tries = -1
+        repeat
+            local s,e = pcall(doNormalInject)
+            if s then
+                succeess = true
+                if e then
+                    stop = true
+                end
+            else
+                nextInjectMethod()
+                tries = tries + 1
             end
-        elseif not s and (util.InjectMethod ~= "Tool" and util.InjectMethod ~= "New") then
-            error(e)
-        elseif s then
-            if e then
-                return
+            if tries == #util.InjectMethods then
+                noInjectMethods = true
+                break
             end
+            wait(0.5)
+        until success or noInjectMethods
+        if stop then return end
+        if noInjectMethods then
+            error("Failed to inject:\10Failed to inject using all "..(#util.InjectMethods).." injection methods.")
         end
     end
     
@@ -745,12 +752,13 @@ img_BtnMode = createButton(f)
 img_BtnMode.Caption = util.InjectMethod
 img_BtnMode.setSize(50,20)
 img_BtnMode.setPosition(470-125-10-50-10,5)
-img_BtnMode.onClick = function()
+function nextInjectMethod()
     local curIdx = table.find(util.InjectMethods, util.InjectMethod)
     util.InjectMethod = util.InjectMethods[curIdx+1] or util.InjectMethods[1]
 
     img_BtnMode.Caption = util.InjectMethod
 end
+img_BtnMode.onClick = nextInjectMethod
 
 img_BtnClose = createButton(f)
 img_BtnClose.setSize(20,20)
