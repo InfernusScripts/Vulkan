@@ -15,8 +15,11 @@ local util = {
         "Windows10Universal"
     },
 
-    InjectMethod = --"New"
-	"Tool"
+    InjectMethod = "Reset",
+    InjectMethods = {
+        "Tool",
+        "Reset"
+    }
 }
 
 print("Loading...\10")
@@ -607,20 +610,21 @@ function inject()
             checkFailed(targetScript,"Failed to get player's tools.")
             print("Got tool"..(equippedTool and " (in your hands)" or "")..":",tool.Name)
             injectedOutput = "Injected!\10"..(equippedTool and "Unequip" or "Equip").." "..tool.Name.." to show vulkan's UI."
-        elseif util.InjectMethod == "New" then
+        elseif util.InjectMethod == "Reset" then
             local ignore, fail = {}, false
             repeat
-            targetScript = game.StarterPlayer.StarterCharacterScripts:FindFirstChildOfClass("LocalScript", 1, ignore)
-            if targetScript and targetScript.Enabled then
-                INJECT(targetScript, injectScript)
-                print("Injected!\10Reset your character to show Vulkan's UI!")
-                break
-            elseif targetScript and not targetScript.Enabled then
-                table.insert(ignore, targetScript)
-                targetScript = nil
-            elseif not targetScript then
-                fail = true
-            end
+                targetScript = char:FindFirstChildOfClass("LocalScript", 1, ignore)
+                if targetScript and targetScript.Enabled then
+                    targetScript:SetParent(localPlayer.PlayerScripts)
+                    INJECT(targetScript, injectScript)
+                    print("Injected!\10Reset your character to show Vulkan's UI!")
+                    break
+                elseif targetScript and not targetScript.Enabled then
+                    table.insert(ignore, targetScript)
+                    targetScript = nil
+                elseif not targetScript then
+                    fail = true
+                end
             until fail or targetScript
             if fail then
                 error("Failed to get valid script for injecting.")
@@ -710,14 +714,16 @@ img_BtnInject.setSize(125,20)
 img_BtnInject.setPosition(470-125-10,5)
 img_BtnInject.onClick = inject
 
---[[img_BtnMode = createButton(f)
+img_BtnMode = createButton(f)
 img_BtnMode.Caption = util.InjectMethod
 img_BtnMode.setSize(50,20)
 img_BtnMode.setPosition(470-125-10-50-10,5)
 img_BtnMode.onClick = function()
-    util.InjectMethod = util.InjectMethod == "Tool" and "New" or "Tool"
+    local curIdx = table.find(util.InjectMethods, util.InjectMethod)
+    util.InjectMethod = util.InjectMethods[curIdx+1] or util.InjectMethods[1]
+
     img_BtnMode.Caption = util.InjectMethod
-end]]
+end
 
 img_BtnClose = createButton(f)
 img_BtnClose.setSize(20,20)
@@ -727,7 +733,6 @@ img_BtnClose.Caption = "X"
 img_BtnClose.Cursor = -21
 img_BtnClose.Anchors = '[akTop,akRight]'
 img_BtnClose.onClick = function()
-    f.Close()
     os.exit()
 end
 
