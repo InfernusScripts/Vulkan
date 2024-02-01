@@ -12,15 +12,13 @@ local util = {
 
     RobloxNames = {
         "RobloxPlayerBeta",
-        "Windows10Universal",
-	"RobloxStudio"
+        "Windows10Universal"
     },
 
     InjectMethod = "Reset",
     InjectMethods = {
         "Tool",
-        "Reset",
-	-- "Jump"
+        "Reset"
     }
 }
 
@@ -117,6 +115,7 @@ function inject()
     local UWP, WEB = true, true
     beginInject()
     print("Scanning (can take a while, please wait)...")
+    print("READ PLEASE WHILE IT IS SCANNING!\10Read while injecting so it wont crash!")
     local players, nameOffset, valid;
     local function scan1(roblox)
         local pattern = util.Patterns[roblox].Players
@@ -651,28 +650,14 @@ function inject()
         end
     else
         print("GAME: Other\10Inject method: "..util.InjectMethod)
-        local succeess, noInjectMethods, stop = false, false, false
-        local tries = -1
-        repeat
-            local s,e = pcall(doNormalInject)
-            if s then
-                succeess = true
-                if e then
-                    stop = true
-                end
-            else
-                nextInjectMethod()
-                tries = tries + 1
-            end
-            if tries == #util.InjectMethods then
-                noInjectMethods = true
-                break
-            end
-            wait(0.5)
-        until success or noInjectMethods
-        if stop then return end
-        if noInjectMethods then
-            error("Failed to inject:\10Failed to inject using all "..(#util.InjectMethods).." injection methods.")
+        local success, res = false, nil
+        for i=1, #util.InjectMethods do
+            if success then break end
+            success, res = pcall(doNormalInject)
+            if not success then nextInjectMethod() end
+        end
+        if res then
+            return
         end
     end
     
