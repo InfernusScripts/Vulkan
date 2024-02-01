@@ -768,6 +768,8 @@ img_BtnClose.Caption = "X"
 img_BtnClose.Cursor = -21
 img_BtnClose.Anchors = '[akTop,akRight]'
 img_BtnClose.onClick = function()
+    print("You motherfu...\10EEHHHHH CLOSED MEEEEEEEEE *bug sounds*\10\10\10...")
+    wait(0.1)
     os.exit()
 end
 
