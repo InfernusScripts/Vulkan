@@ -101,7 +101,7 @@ table.find = function(t,v)
 end
 
 function beginInject()
-    print("-----\10\10Injecting...\10Please, go away from your keyboard and wait until injected.\10\10-----")
+    print("-----\10\10Injecting..."--[[\10Please, go away from your keyboard and wait until injected.\10\10-----"]])
     print("Selecting process...")
     for i,v in pairs(util.RobloxNames) do
         OpenProcess(v)
