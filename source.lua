@@ -115,7 +115,7 @@ function inject()
     local UWP, WEB = true, true
     beginInject()
     print("Scanning (can take a while, please wait)...")
-    print("READ IT PLEASE WHILE IT IS SCANNING!\10Read while injecting so it wont crash!")
+    print("READ IT PLEASE WHILE IT IS SCANNING!\10Walk while injecting so it wont crash!")
     local players, nameOffset, valid;
     local function scan1(roblox)
         local pattern = util.Patterns[roblox].Players
