@@ -18,7 +18,8 @@ local util = {
     InjectMethod = "Reset",
     InjectMethods = {
         "Tool",
-        "Reset"
+        "Reset",
+	"Walk (coming soon)"
     }
 }
 
