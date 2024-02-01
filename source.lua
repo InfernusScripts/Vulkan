@@ -20,7 +20,7 @@ local util = {
     InjectMethods = {
         "Tool",
         "Reset",
-	"SOON" -- jump injection
+	-- "Jump"
     }
 }
 
