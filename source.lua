@@ -502,7 +502,6 @@ function inject()
     localPlayer = players.LocalPlayer
     char = localPlayer.Character
     character = char
-    checkFailed(char,"Failed to get player")
 
     injectScript = nil
     print("Getting inject script...")
@@ -573,31 +572,6 @@ function inject()
                         TOOL(v)
                     end
                 end
-                
-                if not tool and not targetScript then
-                    print("Failed to get player tools.\10Trying to get global tools...")
-
-                    local blocked, fail = {}, false
-                    if not tool and not targetScript and localBackpack or character then
-                        repeat
-                            local tOOl = game:FindFirstClass("Tool",math.huge,blocked)
-                            if not tOOl then fail = true break end
-                            TOOL(tOOl)
-                            if not tool and not targetScript then
-                                table.insert(blocked,tOOl)
-                            end
-                        until fail or tool and targetScript
-                    end
-
-                    if not fail and tool and targetScript then
-                        print("Found global tool!\10Reparenting to "..(localBackpack and "backpack" or character and "character").."...")
-                        tool:SetParent(character or localBackpack)
-                        equippedTool = character ~= nil 
-                        print("Reparented to",character and "Character\10When injected you should reset!" or "Backpack")
-                    elseif fail then
-                        checkFailed(nil,"Failed to get global tools.")
-                    end
-                end
             end
             if character then
                 print("Found character.")
@@ -618,6 +592,7 @@ function inject()
             print("Got tool"..(equippedTool and " (in your hands)" or "")..":",tool.Name)
             injectedOutput = "Injected!\10"..(equippedTool and "Unequip" or "Equip").." "..tool.Name.." to show vulkan's UI."
         elseif util.InjectMethod == "Reset" then
+            checkFailed(char,"Failed to get player")
             local ignore, fail = {}, false
             repeat
                 targetScript = char:FindFirstChildOfClass("LocalScript", 1, ignore)
