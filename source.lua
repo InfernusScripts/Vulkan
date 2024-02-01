@@ -13,6 +13,7 @@ local util = {
     RobloxNames = {
         "RobloxPlayerBeta",
         "Windows10Universal"
+	"RobloxStudio"
     },
 
     InjectMethod = "Reset",
