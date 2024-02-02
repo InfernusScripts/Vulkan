@@ -21,7 +21,7 @@ local util = {
         "Reset"
     },
 
-    Patched = true,
+    Patched = false,
     Discontinued = false
 }
 
