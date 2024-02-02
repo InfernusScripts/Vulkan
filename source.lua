@@ -19,8 +19,14 @@ local util = {
     InjectMethods = {
         "Tool",
         "Reset"
-    }
+    },
+
+    Patched = true,
+    Discontinued = false
 }
+
+if util.Discontinued then return print("We're sorry, but Vulkan is discontinued now :(") end
+if util.Patched then return print("\10Vulkan is patched!\10Please be patient while we fixing it.\10It can take 1-2 days or less.") end
 
 print("Loading...\10")
 
@@ -182,6 +188,7 @@ function inject()
     local parentOffset = 0;
     for i = 0x10, 0x120, 8 do
         local ptr = readQword(players + i)
+        checkFailed(ptr, "Uh oh!\10Looks like your roblox just crashed!")
         if ptr ~= 0 and ptr % 4 == 0 then
             if (readQword(ptr + 8) == ptr) then
                 parentOffset = i
@@ -491,6 +498,7 @@ function inject()
 
     for i = 0x10,0x600,4 do
         local ptr = readQword(players.self + i)
+        checkFailed(ptr, "Uh oh!\10Looks like your roblox just crashed!")
         if readQword(ptr + parentOffset) == players.self then
             localPlayerOffset = i
             break
@@ -510,6 +518,7 @@ function inject()
     for rn = 1,#results do
         local result = results[rn];
         local bres = util.intToBytes(result);
+        checkFailed(bres, "Uh oh!\10Looks like your roblox just crashed!")
         local aobs = ""
         for i = 1,8 do
             aobs = aobs .. string.format("%02X", bres[i])
@@ -521,6 +530,7 @@ function inject()
             valid = false
             for i = 1,#res do
                 result = res[i]
+                checkFailed(result, "Uh oh!\10Looks like your roblox just crashed!")
 
                 if (readQword(result - nameOffset + 8) == result - nameOffset) then
                     injectScript = result - nameOffset
