@@ -65,7 +65,7 @@ end
 
 util.aobScan = function(aob, code)
     local new_results = {}
-    local results = AOBScan(aob, "*X*C*W")
+    local results = AOBScan(aob, "*Z*X*W")
     if not results then
         return new_results
     end
@@ -80,9 +80,10 @@ util.intToBytes = function(val)
     if val == nil then
         error('Cannot convert nil value to byte table')
     end
-    local t = { val & 0xFF }
-    for i = 1,7 do
-        table.insert(t, (val >> (8 * i)) & 0xFF)
+    local t = { val % 256 }
+    for i = 1, 7 do
+        val = math.floor(val / 256)
+        table.insert(t, val % 256)
     end
     return t
 end
@@ -107,10 +108,10 @@ table.find = function(t,v)
 end
 
 function beginInject()
-    print("-----\10\10Beginning injecting..."--[[\10Please, go away from your keyboard and wait until injected.\10\10-----"]])
+    print("-----\10\10Beginning injecting...\10Please, go away from your keyboard and wait until injected.\10\10-----")
     print("Selecting process...")
     for i,v in pairs(util.RobloxNames) do
-        OpenProcess(v)
+        (OpenProcess or openProcess)(v)
     end
     print("To speed up the injection process, make graphics lower and disable the antiviruses (if you have them).")
 end
@@ -119,9 +120,8 @@ function inject()
     if injecting then return end
     --injecting = true
     local UWP, WEB = true, true
-    beginInject()
     print("Scanning (can take a while, please wait)...")
-    print("READ IT PLEASE WHILE IT IS SCANNING!\10Walk while injecting so it wont crash!")
+    beginInject()
     local players, nameOffset, valid;
     local function scan1(roblox)
         local pattern = util.Patterns[roblox].Players
@@ -166,24 +166,19 @@ function inject()
         end
     end
 
-    print("Checking if roblox is WEB\10(If WEB not found, that means that WEB is not supported)...")
     scan1("WEB")
     if not players then
         WEB = false
         
-        print("Checking if roblox is UWP\10(If UWP not found, that means that UWP is not supported)...")
         scan1("UWP")
         if not players then
             UWP = false
         end
     end
-    print("WEB: "..tostring(WEB).."\10UWP: "..tostring(UWP))
 
     if not UWP and not WEB then
         error("Roblox is not opened or the cheat is not updated by the developers!\10Please, try to use different type of roblox (if you're on WEB roblox, try to UWP, else try WEB)\10")
     end
-
-    print("Roblox type:\10"..(UWP and "UWP" or "WEB"))
 
     local parentOffset = 0;
     for i = 0x10, 0x120, 8 do
@@ -754,7 +749,7 @@ isUWPEmpty = isEmptyString(util.Patterns.UWP.Players)
 if isWEBEmpty and isUWPEmpty then
     print("Uh oh!\10Vulkan is down currently!\10Reason: No patterns found!")
     wait(5)
-    os.exit()
+    return os.exit()
 elseif isWEBEmpty or isUWPEmpty then
     print("Please make sure that you using Vulkan on "..(isWEBEmpty and "UWP" or "WEB").." roblox, or it will not work!")
 end
