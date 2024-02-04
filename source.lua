@@ -1,1 +1,1 @@
-print("Uh oh sounds like it's patched :(\10Reason: lots of crashes + chances of ban\10 ")
+print("Uh oh sounds like vulkan is patched :(\10Reason: Lots of crashes + chances of ban\10:(")
