@@ -700,8 +700,12 @@ end
 
 function hideCe()
     MainForm.Visible = false
-    -- MainForm.FromAddress.Text = randomString(#MainForm.FromAddress.Text)
-    -- MainForm.ToAddress.Text = randomString(#MainForm.ToAddress.Text)
+    if MainForm.FromAddress then
+        MainForm.FromAddress.Text = randomString(#MainForm.FromAddress.Text)
+    end
+    if MainForm.ToAddress then
+        MainForm.ToAddress.Text = randomString(#MainForm.ToAddress.Text)
+    end
 end
 
 hideCe()
