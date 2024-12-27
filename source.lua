@@ -17,8 +17,8 @@ local util = {
         "Reset"
     },
 
-    Patched = false,
-    Discontinued = false
+    Patched = true,
+    Discontinued = true
 }
 
 if util.Discontinued then return print("We're sorry, but Vulkan is discontinued now :(\10") end
